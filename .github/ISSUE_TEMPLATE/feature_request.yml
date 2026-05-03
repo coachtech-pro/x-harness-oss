@@ -1,0 +1,42 @@
+name: ✨ 機能要望
+description: 新機能・改善の提案 (課題と期待動作のみ。解決策の議論は Issue 上で行う)
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        解決策や実装方法は書かなくて構いません。**何が課題で、どうなっていて欲しいか**を共有してください。
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: 概要
+      description: 1〜2 行でまとめた要望
+      placeholder: 例) 引用RT検出時に自動でリプライを送れるようにしてほしい
+    validations:
+      required: true
+
+  - type: textarea
+    id: background
+    attributes:
+      label: 背景 / ユースケース
+      description: なぜ必要か、どんな運用で困っているか
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期待する動作
+      description: 機能が実現された時、ユーザーから見てどう動くか
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: 備考
+      description: 関連 Issue・スクリーンショット・参考リンクなど
+    validations:
+      required: false
