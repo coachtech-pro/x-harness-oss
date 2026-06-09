@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { api } from '@/lib/api'
+// 202606修正開始
+import { api, fetchApi } from '@/lib/api'
+// 202606修正終了
 import type { TweetHistory, ScheduledPost } from '@/lib/api'
 import Header from '@/components/layout/header'
 import ApiCostGate from '@/components/api-cost-gate'
@@ -219,12 +221,8 @@ const handleSchedulePost = async () => {
   setScheduleList(updatedList);
 
   // ② DB保存
-  await fetch('https://x-harness-worker.x-harness.workers.dev/api/weeks/bulk', {
+  await fetchApi('/api/weeks/bulk', {
   method: 'POST',
-  headers: {
-    'Content-Type': 'application/json',
-    'Authorization': 'Bearer test-key',
-  },
   body: JSON.stringify({
     xAccountId: currentXAccountId,
     items: updatedList,
