@@ -143,11 +143,34 @@ export default function PostsPage() {
   const [scheduleList, setScheduleList] = useState<SchedulePreview[]>([]);
   const [menuOpenIndex, setMenuOpenIndex] = useState<number | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const handleDelete = (index: number) => {
-  setScheduleList(
-    scheduleList.filter((_, i) => i !== index)
-  );
+
+  // 必須チェック
+  const isValid =
+  weekDay !== '' &&
+  scheduleTime !== '' &&
+  schText.trim() !== '';
+
+  //削除ボタン
+  const handleDelete = async (index: number) => {
+  const updatedList = scheduleList
+    .filter((_, i) => i !== index)
+    .map((item, idx) => ({
+      ...item,
+      sortOrder: idx + 1,
+    }));
+
+  setScheduleList(updatedList);
+
+  await fetchApi('/api/weeks/bulk', {
+    method: 'POST',
+    body: JSON.stringify({
+      xAccountId: currentXAccountId,
+      items: updatedList,
+    }),
+  });
   };
+  
+  //編集ボタン
  const handleEdit = (index: number) => {
   const item = scheduleList[index];
 
@@ -160,8 +183,10 @@ export default function PostsPage() {
   setTimezone(item.timezone);
 
   setMenuOpenIndex(null);
-};
-const moveUp = (index: number) => {
+ };
+
+//↑ボタン
+const moveUp = async (index: number) => {
   if (index === 0) return;
 
   const newList = [...scheduleList];
@@ -171,10 +196,24 @@ const moveUp = (index: number) => {
     newList[index - 1],
   ];
 
-  setScheduleList(newList);
+  const updatedList = newList.map((item, idx) => ({
+    ...item,
+    sortOrder: idx + 1,
+  }));
+
+  setScheduleList(updatedList);
+
+  await fetchApi('/api/weeks/bulk', {
+    method: 'POST',
+    body: JSON.stringify({
+      xAccountId: currentXAccountId,
+      items: updatedList,
+    }),
+  });
 };
 
-const moveDown = (index: number) => {
+//↓ボタン
+const moveDown = async (index: number) => {
   if (index === scheduleList.length - 1) return;
 
   const newList = [...scheduleList];
@@ -184,8 +223,41 @@ const moveDown = (index: number) => {
     newList[index + 1],
   ];
 
-  setScheduleList(newList);
+  const updatedList = newList.map((item, idx) => ({
+    ...item,
+    sortOrder: idx + 1,
+  }));
+
+  setScheduleList(updatedList);
+
+  await fetchApi('/api/weeks/bulk', {
+    method: 'POST',
+    body: JSON.stringify({
+      xAccountId: currentXAccountId,
+      items: updatedList,
+    }),
+  });
 };
+  //チェックボックス
+  const toggleEnabled = async (index: number) => {
+  const updatedList = [...scheduleList];
+
+  updatedList[index] = {
+    ...updatedList[index],
+    enabled: !updatedList[index].enabled,
+  };
+
+  setScheduleList(updatedList);
+
+  await fetchApi('/api/weeks/bulk', {
+    method: 'POST',
+    body: JSON.stringify({
+      xAccountId: currentXAccountId,
+      items: updatedList,
+    }),
+  });
+  };
+
 const handleSchedulePost = async () => {
   const newItem: SchedulePreview = {
     id: editingId ?? crypto.randomUUID(),
@@ -699,12 +771,15 @@ const handleSchedulePost = async () => {
       {/* キューに追加ボタン */}
       <div className="flex items-start pt-6">
         <button
-          type="button"
-          onClick={handleSchedulePost}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-lg text-sm font-medium whitespace-nowrap"
-        >
-          キューに追加
-        </button>
+        type="button"
+        disabled={!isValid}
+        onClick={handleSchedulePost}
+        className={`px-4 py-2 rounded-lg text-white
+          ${isValid ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-300 cursor-not-allowed'}
+        `}
+      >
+        キューに追加
+      </button>
       </div>
 </div>
     {/* ===== 登録済みスケジュール ===== */}
@@ -733,6 +808,8 @@ const handleSchedulePost = async () => {
                     <input
                       type="checkbox"
                       className="h-4 w-4"
+                      checked={item.enabled}
+                      onChange={() => toggleEnabled(index)}
                     />
 
                     <button
