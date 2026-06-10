@@ -102,6 +102,8 @@ export interface ScheduledPost {
   createdAt: string;
 }
 
+
+
 export interface XAccount {
   id: string;
   xUserId: string;
@@ -281,6 +283,9 @@ export const api = {
     quotes: (tweetId: string, xAccountId: string) =>
       fetchApi<ApiResponse<MentionReply[]>>(`/api/posts/${tweetId}/quotes?xAccountId=${xAccountId}`),
   },
+
+
+
 
   quotes: {
     list: (params: { xAccountId: string; limit?: number; offset?: number }) => {

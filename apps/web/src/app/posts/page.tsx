@@ -9,7 +9,6 @@ import {
 } from 'react'
 import { api, fetchApi } from '@/lib/api'
 // 202606修正終了
-import type { TweetHistory, ScheduledPost } from '@/lib/api'
 import Header from '@/components/layout/header'
 import ApiCostGate from '@/components/api-cost-gate'
 import { useCurrentAccountId } from '@/hooks/use-selected-account'
@@ -19,6 +18,7 @@ type Tab = 'immediate' | 'scheduled' | 'schedulePost'
 // 202606修正終了
 
 //202606追加開始
+
 type SchedulePreview = {
   id: string;
   sortOrder: number;
@@ -41,6 +41,11 @@ type ScheduleItem = {
   offset: string;
   timezone: string;
 };
+
+import type {
+  TweetHistory,
+  ScheduledPost,
+} from '@/lib/api'
 
 //202606追加終了
 
@@ -145,8 +150,11 @@ export default function PostsPage() {
 　{ value: 'Asia/Shanghai', label: '中国 (CST)' },
 　{ value: 'Asia/Singapore', label: 'シンガポール (SGT)' },
   ];
+  
   const currentXAccountId = useCurrentAccountId();
+
   const WORKER_URL = process.env.NEXT_PUBLIC_WORKER_URL;
+
   const [scheduleList, setScheduleList] = useState<SchedulePreview[]>([]);
   const [menuOpenIndex, setMenuOpenIndex] = useState<number | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -325,6 +333,7 @@ const handleSchedulePost = async () => {
   setScheduleList(updatedList);
 
   // ② DB保存
+  
   await fetchApi('/api/weeks/bulk', {
   method: 'POST',
   body: JSON.stringify({
@@ -471,6 +480,7 @@ const handleSchedulePost = async () => {
       loadScheduled()
     }
   }, [tab, loadScheduled])
+
 
   // Cleanup preview URLs on unmount
   useEffect(() => {
