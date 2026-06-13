@@ -1025,13 +1025,9 @@ const hasPosted = postedPosts.length > 0
 
                 return (
                   <td
-                    key={weekday}
-                    className={`border align-top p-1 h-16 ${
-                      posts.length > 0
-                        ? hasPosted
-                          ? 'bg-gray-200'
-                          : 'bg-green-200'
-                        : ''
+                    key={key}
+                    className={`border px-2 py-2 align-top ${
+                      posts.length > 0 ? 'bg-green-200' : 'bg-white'
                     }`}
                   >
                     <div className="space-y-1">
