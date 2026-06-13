@@ -1,4 +1,50 @@
 //202606新規追加開始
+function calculateNextWeeklyRunAt(
+  week: {
+    weekday: number;
+    time: string;
+    offset: number;
+    timezone: string;
+  },
+  fromDate: Date
+): string {
+  const tz = week.timezone || 'Asia/Tokyo';
+
+  // 現状は Asia/Tokyo 前提で計算
+  const jstNow = new Date(fromDate.getTime() + 9 * 60 * 60 * 1000);
+
+  const currentWeekday = jstNow.getUTCDay();
+
+  const [hour, minute] = week.time.split(':').map(Number);
+
+  const offset = week.offset ?? 0;
+
+  const randomOffsetMinutes =
+    offset === 0
+      ? 0
+      : Math.floor(Math.random() * (offset * 2 + 1)) - offset;
+
+  let diff = week.weekday - currentWeekday;
+
+  if (diff < 0) {
+    diff += 7;
+  }
+
+  const targetJst = new Date(jstNow);
+  targetJst.setUTCDate(jstNow.getUTCDate() + diff);
+  targetJst.setUTCHours(hour, minute, 0, 0);
+
+  targetJst.setUTCMinutes(targetJst.getUTCMinutes() + randomOffsetMinutes);
+
+  if (targetJst.getTime() <= jstNow.getTime()) {
+    targetJst.setUTCDate(targetJst.getUTCDate() + 7);
+  }
+
+  const targetUtc = new Date(targetJst.getTime() - 9 * 60 * 60 * 1000);
+
+  return targetUtc.toISOString();
+}
+
 export async function processWeeklySchedules(
   db: D1Database
 ): Promise<void> {
@@ -41,7 +87,21 @@ export async function processWeeklySchedules(
     // ① 重複投稿防止（今日1回）
     // ===============================
     const nowUTC = new Date();
-    const today = nowUTC.toISOString().slice(0, 10);
+
+      if (!week.next_run_at) {
+        continue;
+      }
+
+      const nextRunAtDate = new Date(week.next_run_at);
+
+      if (nextRunAtDate.getTime() > nowUTC.getTime()) {
+        continue;
+      }
+
+// ここに来たら投稿
+
+    
+    /*const today = nowUTC.toISOString().slice(0, 10);
 
     if (
       week.last_posted_at &&
@@ -50,7 +110,7 @@ export async function processWeeklySchedules(
       console.log('[week-scheduler:skip] already posted today');
       continue;
     }
-
+*/
     // ===============================
     // ② timezone変換（ここが本体）
     // ===============================
@@ -93,7 +153,7 @@ export async function processWeeklySchedules(
       currentMinute,
     });
 
-    // ===============================
+  /*  // ===============================
     // ③ 曜日チェック
     // ===============================
     if (week.weekday !== currentWeekday) {
@@ -122,7 +182,26 @@ export async function processWeeklySchedules(
     if (diff > offset) {
       continue;
     }
+*/
+    // ===============================
+// ③ next_run_at チェック
+// ===============================
+if (!week.next_run_at) {
+  console.log('[week-scheduler:skip] next_run_at is null');
+  continue;
+}
 
+const nextRunAtDate = new Date(week.next_run_at);
+
+console.log('[week-scheduler:check next_run_at]', {
+  next_run_at: week.next_run_at,
+  now_utc: nowUTC.toISOString(),
+});
+
+if (nextRunAtDate.getTime() > nowUTC.getTime()) {
+  console.log('[week-scheduler:skip] next_run_at is future');
+  continue;
+}
     console.log('[week-scheduler:matched]', { id: week.id });
 
     // ===============================
@@ -153,16 +232,33 @@ export async function processWeeklySchedules(
     )
     .run();
 
-    // ===============================
-    // ⑥ last_posted_at更新
-    // ===============================
-    await db.prepare(`
-      UPDATE scheduled_weeks
-      SET last_posted_at = ?
-      WHERE id = ?
-    `)
-    .bind(now, week.id)
-    .run();
+// ===============================
+// ⑥ last_posted_at / next_run_at更新
+// ===============================
+/*const baseNextRunAt = week.next_run_at
+  ? new Date(week.next_run_at)
+  : new Date(now);
+
+const nextRunAt = new Date(baseNextRunAt);
+nextRunAt.setDate(nextRunAt.getDate() + 7);
+*/
+    const nextRunAt = calculateNextWeeklyRunAt(week, nowUTC); 
+    
+await db.prepare(`
+  UPDATE scheduled_weeks
+  SET
+    last_posted_at = ?,
+    next_run_at = ?,
+    updated_at = ?
+  WHERE id = ?
+`)
+.bind(
+  now,
+  nextRunAt,
+  now,
+  week.id
+)
+.run();
 
     console.log('[week-scheduler:inserted]');
   }

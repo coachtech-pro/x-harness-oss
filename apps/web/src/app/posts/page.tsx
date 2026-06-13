@@ -28,6 +28,7 @@ type SchedulePreview = {
   offset: string;
   timezone: string;
   text: string;
+  nextRunAt?: string | null;
   lastPostedAt?: string | null
 };
 
@@ -43,6 +44,7 @@ type ScheduleItem = {
 };
 
 import type {
+  ApiResponse,
   TweetHistory,
   ScheduledPost,
 } from '@/lib/api'
@@ -147,8 +149,8 @@ export default function PostsPage() {
   { value: 'Europe/Paris', label: '中央ヨーロッパ (CET/CEST)' },
   { value: 'Australia/Sydney', label: 'オーストラリア東部' },
   { value: 'Asia/Seoul', label: '韓国 (KST)' },
-　{ value: 'Asia/Shanghai', label: '中国 (CST)' },
-　{ value: 'Asia/Singapore', label: 'シンガポール (SGT)' },
+  { value: 'Asia/Shanghai', label: '中国 (CST)' },
+  { value: 'Asia/Singapore', label: 'シンガポール (SGT)' },
   ];
   
   const currentXAccountId = useCurrentAccountId();
@@ -201,6 +203,7 @@ export default function PostsPage() {
       items: updatedList,
     }),
   });
+    await loadScheduleList();
   };
   
   //編集ボタン
@@ -308,6 +311,7 @@ const handleSchedulePost = async () => {
     text: schText,
     sortOrder: 0, // 後で再計算
     enabled: true,
+    nextRunAt: null,
   };
 
   let updatedList: SchedulePreview[];
@@ -330,7 +334,7 @@ const handleSchedulePost = async () => {
   }));
 
   // ① UI更新
-  setScheduleList(updatedList);
+  //setScheduleList(updatedList);
 
   // ② DB保存
   
@@ -340,7 +344,9 @@ const handleSchedulePost = async () => {
     xAccountId: currentXAccountId,
     items: updatedList,
   }),
-});
+  });
+  
+  await loadScheduleList();
 
   // ③ フォームリセット
   setEditingId(null);
@@ -466,6 +472,26 @@ const handleSchedulePost = async () => {
     }
   }, [])
 
+  //0612追加開始
+const loadScheduleList = useCallback(async () => {
+  if (!currentXAccountId) {
+    setScheduleList([])
+    return
+  }
+
+  try {
+    const res = await fetchApi<ApiResponse<SchedulePreview[]>>(
+      `/api/weeks?xAccountId=${encodeURIComponent(currentXAccountId)}`
+    )
+    if (res.success) {
+      setScheduleList(res.data)
+    }
+  } catch {
+    setScheduleList([])
+  }
+}, [currentXAccountId])
+
+  //0612追加終了
   const [fetched, setFetched] = useState(false)
   const handleManualFetch = () => {
     if (selectedAccountId) {
@@ -481,6 +507,11 @@ const handleSchedulePost = async () => {
     }
   }, [tab, loadScheduled])
 
+  //0612追加開始
+  useEffect(() => {
+  loadScheduleList()
+}, [loadScheduleList])
+  //0612追加終了
 
   // Cleanup preview URLs on unmount
   useEffect(() => {
@@ -817,14 +848,20 @@ const handleSchedulePost = async () => {
       <div className="flex items-start pt-6">
         <button
         type="button"
-        disabled={!isValid}
-        onClick={handleSchedulePost}
+        disabled={!isValid || (!editingId && scheduleList.length >= 50)}
+        onClick={handleSchedulePost}       
         className={`px-4 py-2 rounded-lg text-white
           ${isValid ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-300 cursor-not-allowed'}
         `}
       >
         キューに追加
-      </button>
+        </button>
+        {scheduleList.length >= 50 && !editingId && (
+          <p className="mt-2 text-sm font-medium text-red-600">
+            スケジュール投稿は50件まで登録できます
+            （現在 {scheduleList.length} 件）
+          </p>
+        )}
       </div>
 </div>
     {/* ===== 登録済みスケジュール ===== */}
@@ -833,7 +870,8 @@ const handleSchedulePost = async () => {
         <table className="min-w-full border border-gray-200 text-sm">
           <thead className="bg-gray-50">
             <tr>
-              <th className="border px-3 py-2 w-20"></th>
+                      <th className="border px-3 py-2 w-20"></th>
+              <th className="border px-2 py-2">日付</th>       
               <th className="border px-3 py-2">曜日</th>
               <th className="border px-3 py-2">投稿時刻</th>
               <th className="border px-3 py-2">投稿テキスト</th>
@@ -881,6 +919,12 @@ const handleSchedulePost = async () => {
 
                   </div>
                 </td>
+                <td className="border px-2 py-2 text-center">
+                  {item.nextRunAt
+                    ? new Date(item.nextRunAt).toLocaleDateString('ja-JP')
+                    : '-'}
+                </td>
+
                 <td className="border px-3 py-2">
                   {WEEKDAY_LABELS[item.weekday]}
                 </td>
@@ -976,13 +1020,17 @@ const handleSchedulePost = async () => {
 
                 const key = `${weekday}-${time}`
                 const posts = scheduleMap.get(key) || []
+                const postedPosts = posts.filter(post => post.lastPostedAt)
+const hasPosted = postedPosts.length > 0
 
                 return (
                   <td
                     key={weekday}
                     className={`border align-top p-1 h-16 ${
                       posts.length > 0
-                        ? 'bg-green-200'
+                        ? hasPosted
+                          ? 'bg-gray-200'
+                          : 'bg-green-200'
                         : ''
                     }`}
                   >
@@ -1004,15 +1052,23 @@ const handleSchedulePost = async () => {
                         className={`w-full text-left rounded px-2 py-1 text-[10px] break-words
                           hover:ring-2 hover:ring-blue-500 transition
                           ${
-                            post.lastPostedAt
-                              ? 'bg-gray-300'
-                              : post.enabled
-                                ? 'bg-blue-200'
-                                : 'bg-gray-200'
+                            post.enabled
+                              ? 'bg-blue-200'
+                              : 'bg-gray-200'
                           }
                         `}
                       >
-                        {post.text}
+                        <div className="font-semibold text-[10px]">
+                          {post.nextRunAt
+                            ? new Date(post.nextRunAt).toLocaleDateString('ja-JP')
+                            : '-'}
+                        </div>
+
+                        <div className="mt-1">
+                          {post.text.length > 10
+                            ? `${post.text.slice(0, 10)}...`
+                            : post.text}
+                        </div>
                       </button>
                     ))}
 
