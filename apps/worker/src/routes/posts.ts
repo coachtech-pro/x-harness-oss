@@ -228,7 +228,6 @@ posts.get('/api/posts/mentions', async (c) => {
       };
       meta?: { next_token?: string };
     };
-    c.executionCtx.waitUntil(incrementApiUsage(c.env.DB, account.id, 'search_mentions'));
 
     const usersMap = new Map<string, { username: string; name: string; profile_image_url?: string }>();
     for (const u of raw.includes?.users ?? []) {
