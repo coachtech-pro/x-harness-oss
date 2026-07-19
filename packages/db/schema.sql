@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS x_accounts (
   x_user_id TEXT UNIQUE NOT NULL,
   username TEXT NOT NULL,
   display_name TEXT,
+  profile_image_url TEXT,
   access_token TEXT NOT NULL,
   refresh_token TEXT,
   consumer_key TEXT,

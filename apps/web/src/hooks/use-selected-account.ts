@@ -66,8 +66,26 @@ export function useSelectedAccount() {
       const id = (e as CustomEvent<string>).detail
       setSelectedAccountIdState(id)
     }
+
+    // Re-fetch the account list (e.g. after a profile refresh) without
+    // toggling `loading`, so the sidebar keeps showing current data.
+    const refreshHandler = async () => {
+      try {
+        const res = await api.accounts.list()
+        if (res.success) {
+          setAccounts(res.data)
+        }
+      } catch {
+        // silently fail
+      }
+    }
+
     window.addEventListener('xh_account_change', handler)
-    return () => window.removeEventListener('xh_account_change', handler)
+    window.addEventListener('xh_accounts_refresh', refreshHandler)
+    return () => {
+      window.removeEventListener('xh_account_change', handler)
+      window.removeEventListener('xh_accounts_refresh', refreshHandler)
+    }
   }, [])
 
   const selectedAccount = accounts.find((a) => a.id === selectedAccountId) ?? null

@@ -5,6 +5,7 @@ export interface DbXAccount {
   x_user_id: string;
   username: string;
   display_name: string | null;
+  profile_image_url: string | null;
   access_token: string;
   refresh_token: string | null;
   consumer_key: string | null;
@@ -23,6 +24,7 @@ export async function createXAccount(
     accessToken: string;
     refreshToken?: string;
     displayName?: string;
+    profileImageUrl?: string;
     consumerKey?: string;
     consumerSecret?: string;
     accessTokenSecret?: string;
@@ -32,14 +34,15 @@ export async function createXAccount(
   const now = jstNow();
   const result = await db
     .prepare(
-      `INSERT INTO x_accounts (id, x_user_id, username, display_name, access_token, refresh_token, consumer_key, consumer_secret, access_token_secret, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
+      `INSERT INTO x_accounts (id, x_user_id, username, display_name, profile_image_url, access_token, refresh_token, consumer_key, consumer_secret, access_token_secret, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`,
     )
     .bind(
       id,
       input.xUserId,
       input.username,
       input.displayName ?? null,
+      input.profileImageUrl ?? null,
       input.accessToken,
       input.refreshToken ?? null,
       input.consumerKey ?? null,
@@ -87,6 +90,35 @@ export async function updateXAccount(
       updates.consumerSecret ?? existing.consumer_secret,
       updates.accessTokenSecret ?? existing.access_token_secret,
       updates.isActive !== undefined ? (updates.isActive ? 1 : 0) : existing.is_active,
+      now,
+      id,
+    )
+    .run();
+}
+export async function updateXAccountProfile(
+  db: D1Database,
+  id: string,
+  profile: {
+    username: string;
+    displayName: string | null;
+    profileImageUrl: string | null;
+  },
+): Promise<void> {
+  const now = jstNow();
+
+  await db
+    .prepare(
+      `UPDATE x_accounts
+       SET username = ?,
+           display_name = ?,
+           profile_image_url = ?,
+           updated_at = ?
+       WHERE id = ?`,
+    )
+    .bind(
+      profile.username,
+      profile.displayName,
+      profile.profileImageUrl,
       now,
       id,
     )
