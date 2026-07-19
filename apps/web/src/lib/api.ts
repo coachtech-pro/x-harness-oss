@@ -231,7 +231,10 @@ export const api = {
   },
 
   tags: {
-    list: () => fetchApi<ApiResponse<Tag[]>>('/api/tags'),
+    list: (params?: { xAccountId?: string }) =>
+      fetchApi<ApiResponse<Tag[]>>(
+        `/api/tags${params?.xAccountId ? `?xAccountId=${encodeURIComponent(params.xAccountId)}` : ''}`,
+      ),
     create: (xAccountId: string, name: string, color?: string) =>
       fetchApi<ApiResponse<Tag>>('/api/tags', { method: 'POST', body: JSON.stringify({ xAccountId, name, color }) }),
     update: (id: string, data: { name?: string; color?: string }) =>

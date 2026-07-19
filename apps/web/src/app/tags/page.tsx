@@ -4,6 +4,16 @@ import { useState, useEffect, useCallback } from 'react'
 import { api } from '@/lib/api'
 import type { Tag } from '@/lib/api'
 import Header from '@/components/layout/header'
+import { useSelectedAccount } from '@/hooks/use-selected-account'
+
+function formatAccountLabel(
+  account: { displayName: string | null; username: string } | null
+): string {
+  if (!account?.username) return ''
+  return account.displayName
+    ? `${account.displayName} / @${account.username}`
+    : `@${account.username}`
+}
 
 function TagBadgePreview({ name, color }: { name: string; color: string }) {
   const bg = color || '#3B82F6'
@@ -28,11 +38,12 @@ export default function TagsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showCreateForm, setShowCreateForm] = useState(false)
+  const { loading: accountsLoading, selectedAccountId, selectedAccount } = useSelectedAccount()
+  const selectedAccountLabel = formatAccountLabel(selectedAccount)
 
   // Create form state
   const [newName, setNewName] = useState('')
   const [newColor, setNewColor] = useState('#3B82F6')
-  const [newAccountId, setNewAccountId] = useState('')
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState('')
 
@@ -44,10 +55,17 @@ export default function TagsPage() {
   const [editError, setEditError] = useState('')
 
   const loadTags = useCallback(async () => {
+    if (accountsLoading) return
+    if (!selectedAccountId) {
+      setTags([])
+      setLoading(false)
+      return
+    }
+
     setLoading(true)
     setError('')
     try {
-      const res = await api.tags.list()
+      const res = await api.tags.list({ xAccountId: selectedAccountId })
       if (res.success) {
         setTags(res.data)
       } else {
@@ -58,7 +76,7 @@ export default function TagsPage() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [accountsLoading, selectedAccountId])
 
   useEffect(() => {
     loadTags()
@@ -66,15 +84,19 @@ export default function TagsPage() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!newName.trim() || !newAccountId.trim()) return
+    if (!selectedAccountId) {
+      setCreateError('Xアカウントを選択してください')
+      return
+    }
+    if (!newName.trim()) return
+
     setCreating(true)
     setCreateError('')
     try {
-      const res = await api.tags.create(newAccountId.trim(), newName.trim(), newColor)
+      const res = await api.tags.create(selectedAccountId, newName.trim(), newColor)
       if (res.success) {
         setNewName('')
         setNewColor('#3B82F6')
-        setNewAccountId('')
         setShowCreateForm(false)
         loadTags()
       } else {
@@ -131,7 +153,8 @@ export default function TagsPage() {
         action={
           <button
             onClick={() => setShowCreateForm((v) => !v)}
-            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+            disabled={accountsLoading || !selectedAccountId}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors"
           >
             {showCreateForm ? 'キャンセル' : '+ New Tag'}
           </button>
@@ -151,16 +174,11 @@ export default function TagsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">
-                  X Account ID <span className="text-red-500">*</span>
+                  対象アカウント
                 </label>
-                <input
-                  type="text"
-                  value={newAccountId}
-                  onChange={(e) => setNewAccountId(e.target.value)}
-                  placeholder="account_id"
-                  required
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <div className="w-full border border-gray-200 bg-gray-50 rounded-lg px-3 py-2 text-sm text-gray-700">
+                  {selectedAccountLabel || 'Xアカウントを選択してください'}
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-600 mb-1">
@@ -198,7 +216,7 @@ export default function TagsPage() {
               </button>
               <button
                 type="submit"
-                disabled={creating || !newName.trim() || !newAccountId.trim()}
+                disabled={creating || !newName.trim() || !selectedAccountId}
                 className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors"
               >
                 {creating ? '作成中...' : '作成'}
