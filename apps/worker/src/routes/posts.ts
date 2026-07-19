@@ -1,8 +1,7 @@
 import { Hono } from 'hono';
 import { XClient } from '@x-harness/x-sdk';
+
 import { createScheduledPost, getScheduledPosts, deleteScheduledPost, getXAccountById, getXAccounts, incrementApiUsage, saveQuoteTweets, getQuoteTweetsByAccount, getQuoteTweetsBySource, getLatestDiscoveredAt, recordAction, getActions } from '@x-harness/db';
-
-
 import type { SaveQuoteTweetInput } from '@x-harness/db';
 import type { Env } from '../index.js';
 
@@ -229,6 +228,8 @@ posts.get('/api/posts/mentions', async (c) => {
       };
       meta?: { next_token?: string };
     };
+    c.executionCtx.waitUntil(incrementApiUsage(c.env.DB, account.id, 'search_mentions'));
+
     const usersMap = new Map<string, { username: string; name: string; profile_image_url?: string }>();
     for (const u of raw.includes?.users ?? []) {
       usersMap.set(u.id, { username: u.username, name: u.name, profile_image_url: u.profile_image_url });
@@ -262,8 +263,8 @@ posts.get('/api/posts/mentions', async (c) => {
     let ownReplies: typeof data = [];
     try {
       const ownQuery = `from:${account.username} is:reply`;
-      c.executionCtx.waitUntil(incrementApiUsage(c.env.DB, account.id, 'search_own_replies'));
       const ownRaw = await xClient.searchRecentTweets(ownQuery, sinceId ?? undefined) as typeof raw;
+      c.executionCtx.waitUntil(incrementApiUsage(c.env.DB, account.id, 'search_own_replies'));
       const ownUsersMap = new Map<string, { username: string; name: string; profile_image_url?: string }>();
       for (const u of ownRaw.includes?.users ?? []) {
         ownUsersMap.set(u.id, { username: u.username, name: u.name, profile_image_url: u.profile_image_url });
@@ -585,6 +586,7 @@ posts.post('/api/quotes/sync', async (c) => {
   try {
     // Get recent tweets
     const tweetsRes = await xClient.getUserTweets(account.x_user_id, 100);
+    c.executionCtx.waitUntil(incrementApiUsage(c.env.DB, account.id, 'get_user_tweets'));
     const tweets = tweetsRes.data ?? [];
     let totalSaved = 0;
 
@@ -595,6 +597,7 @@ posts.post('/api/quotes/sync', async (c) => {
           data: Array<{ id: string; text: string; author_id: string; created_at?: string }>;
           includes?: { users?: Array<{ id: string; username: string; name: string; profile_image_url?: string }> };
         };
+        c.executionCtx.waitUntil(incrementApiUsage(c.env.DB, account.id, 'get_quote_tweets'));
         const usersMap = new Map<string, { username: string; name: string; profile_image_url?: string }>();
         for (const u of raw.includes?.users ?? []) {
           usersMap.set(u.id, { username: u.username, name: u.name, profile_image_url: u.profile_image_url });
@@ -622,7 +625,7 @@ posts.post('/api/quotes/sync', async (c) => {
       }
     }
 
-    c.executionCtx.waitUntil(incrementApiUsage(c.env.DB, account.id, 'sync_quotes'));
+    // 使用量は実際の X API 呼び出しごとに get_user_tweets / get_quote_tweets として記録済み
     return c.json({ success: true, data: { tweetsChecked: tweets.length, quotesSaved: totalSaved } });
   } catch (err: any) {
     return c.json({ success: false, error: err.message ?? 'Failed to sync quotes' }, 500);

@@ -182,6 +182,12 @@ npx wrangler d1 execute x-harness --file=packages/db/schema.sql
 > ```
 >
 > 例えば `D1_ERROR: no such table: settings` がログに出るときは、`011-settings-and-line-connections.sql` 以降を流すと解消します。
+>
+> API 使用量ページが常に 0 のままの場合は `api_usage_logs` テーブルが未作成です(使用量の記録はバックグラウンドで行われ、失敗してもエラー表示されません)。`009-api-usage-logs.sql` を適用すると記録が始まります:
+>
+> ```bash
+> pnpm db:migrate:009
+> ```
 
 ### 4. Workers のシークレット設定
 

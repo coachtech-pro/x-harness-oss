@@ -138,9 +138,17 @@ export async function getDailyUsage(db: D1Database, xAccountId?: string, days = 
   }));
 }
 
-export async function getUsageByGate(db: D1Database): Promise<GateUsage[]> {
+export async function getUsageByGate(db: D1Database, xAccountId?: string): Promise<GateUsage[]> {
+  const conditions = ['api_calls_total > 0'];
+  const bindings: string[] = [];
+  if (xAccountId) {
+    conditions.push('x_account_id = ?');
+    bindings.push(xAccountId);
+  }
+
   const rows = await db
-    .prepare('SELECT id, x_account_id, post_id, trigger_type, api_calls_total FROM engagement_gates WHERE api_calls_total > 0 ORDER BY api_calls_total DESC')
+    .prepare(`SELECT id, x_account_id, post_id, trigger_type, api_calls_total FROM engagement_gates WHERE ${conditions.join(' AND ')} ORDER BY api_calls_total DESC`)
+    .bind(...bindings)
     .all<{ id: string; x_account_id: string; post_id: string; trigger_type: string; api_calls_total: number }>();
 
   return rows.results.map((row) => ({

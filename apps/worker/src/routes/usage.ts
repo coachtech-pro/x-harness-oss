@@ -40,7 +40,8 @@ usage.get('/api/usage/daily', async (c) => {
 // GET /api/usage/by-gate — API usage grouped by engagement gate
 usage.get('/api/usage/by-gate', async (c) => {
   try {
-    const data = await getUsageByGate(c.env.DB);
+    const xAccountId = c.req.query('xAccountId');
+    const data = await getUsageByGate(c.env.DB, xAccountId ?? undefined);
     // Serialize snake_case to camelCase for frontend
     const serialized = data.map((g) => ({
       id: g.id,
